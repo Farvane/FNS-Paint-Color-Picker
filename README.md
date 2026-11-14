@@ -1,6 +1,6 @@
-# FNS Paint Gun Color Picker
+# \[FNS\] GRIDWORX - Paint Gun Color Picker
 
-**v0.2.1 preview** — optional Pulsar Modern client plugin for Space Engineers 2.
+**v1.0.0** — optional Pulsar Modern client plugin for Space Engineers 2.
 
 Type hex colour codes (`#RRGGBB` or `#RGB`) into your paint gun palette slots,
 see the colour the game will actually store before you apply it, and keep
@@ -11,7 +11,7 @@ disabled until validated. Windows is the release test platform.
 
 ## Install
 
-1. Install Pulsar from https://github.com/SpaceGT/Pulsar/releases and run Modern.
+1. Install Pulsar from <https://github.com/SpaceGT/Pulsar/releases> and run Modern.
 2. Close SE2/Pulsar. Extract `FNSPaintColorPicker.dll` and
    `FNSPaintColorPicker.xml` from the release ZIP into the existing
    `Modern/Local` directory under your Pulsar installation.

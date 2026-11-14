@@ -50,8 +50,8 @@ internal sealed class PaletteScreen : ScreenView
         save.Click += (_, _) => Run(SavePreset);
 
         var panel = new StackPanel { Margin = new Thickness(30), Spacing = 18 };
-        panel.Children.Add(new TextBlock { Text = "FNS Paint Gun Color Picker", FontSize = 25 });
-        panel.Children.Add(new TextBlock { Text = "v0.2.1 preview • SE2 " + PaletteController.SupportedBuild, TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text = "[FNS] GRIDWORX - Paint Gun Color Picker", FontSize = 25 });
+        panel.Children.Add(new TextBlock { Text = "v1.0.0 • SE2 " + PaletteController.SupportedBuild, TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(_status);
         panel.Children.Add(new TextBlock
         {
@@ -68,9 +68,14 @@ internal sealed class PaletteScreen : ScreenView
 
         var border = new Border
         {
-            MinWidth = 760, MaxWidth = 1400, MaxHeight = 900,
-            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-            Background = Panel, BorderBrush = Edge, BorderThickness = new Thickness(1),
+            MinWidth = 760,
+            MaxWidth = 1400,
+            MaxHeight = 900,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = Panel,
+            BorderBrush = Edge,
+            BorderThickness = new Thickness(1),
             Child = new ScrollViewer { Content = panel }
         };
         var overlay = new Grid { Background = new SolidColorBrush(Color.FromArgb(160, 0, 0, 0)) };
@@ -210,7 +215,10 @@ internal sealed class PaletteScreen : ScreenView
 
     internal static Border Swatch(HexColor color, double size) => new()
     {
-        Width = size, Height = size, BorderBrush = Edge, BorderThickness = new Thickness(1),
+        Width = size,
+        Height = size,
+        BorderBrush = Edge,
+        BorderThickness = new Thickness(1),
         Background = new SolidColorBrush(Color.FromRgb(color.R, color.G, color.B))
     };
 
