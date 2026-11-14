@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<PluginData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="GitHubPlugin">
+  <FriendlyName>FNS Paint Gun Color Picker</FriendlyName>
+  <Author>Farvane</Author>
+  <Tooltip>Type hex colour codes into your paint gun palette.</Tooltip>
+  <Description>Adds a settings screen where you type #RRGGBB values into your paint gun palette slots, previews the colour the game will store, and keeps named presets for reuse across worlds. Uses the game's own palette update, so it changes only your own palette.</Description>
+  <Runtimes>CoreCLR</Runtimes>
+  <Platforms>Windows</Platforms>
+</PluginData>
