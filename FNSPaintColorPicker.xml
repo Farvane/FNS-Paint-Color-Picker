@@ -12,6 +12,5 @@
   </SourceDirectories>
   <Runtimes>CoreCLR</Runtimes>
   <Platforms>Windows</Platforms>
-  <!-- Replace with the 1.0.0 source commit after this descriptor is approved. -->
-  <Commit>REPLACE_AFTER_REVIEW</Commit>
+  <Commit>75b351a6fc5b81935f0289af671d9ff1251e98a6</Commit>
 </PluginData>
