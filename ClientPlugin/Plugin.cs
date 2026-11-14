@@ -7,6 +7,7 @@ using Keen.VRage.Core;
 using Keen.VRage.Core.Plugins;
 using Keen.VRage.Library.Diagnostics;
 using Keen.VRage.Library.Utils;
+using Keen.VRage.UI.Screens;
 
 namespace Farvane.PaintColorPicker;
 
@@ -22,10 +23,12 @@ public sealed class Plugin : IPlugin, IDisposable
     private readonly string? _settingsError;
 
     internal PaletteController Palette { get; }
+    private readonly RadialMenuIntegration? _radial;
 
     public Plugin()
     {
         Palette = new PaletteController();
+        if (Palette.IsSupported) _radial = new RadialMenuIntegration(this);
         try
         {
             var directory = GetConfigPath?.Invoke(Name, null)
@@ -41,7 +44,10 @@ public sealed class Plugin : IPlugin, IDisposable
         }
     }
 
-    public void OpenConfigDialog()
+    public void OpenConfigDialog() => ShowScreen<PaletteScreen>(new PaletteScreenModel(this), ScreenLayer.Normal);
+
+    /// <summary>Opens a plugin screen; <see cref="ScreenLayer.Top"/> draws above the radial menu.</summary>
+    internal void ShowScreen<TView>(ScreenViewModel model, ScreenLayer layer) where TView : ScreenView, new()
     {
         try
         {
@@ -55,7 +61,7 @@ public sealed class Plugin : IPlugin, IDisposable
             var app = get.MakeGenericMethod(appType).Invoke(engine, new object[] { default(StringId) });
             var ui = AccessTools.Method(appType, "GetSharedUI")?.Invoke(app, null) as SharedUIComponent;
             if (ui is null) return;
-            ui.CreateScreen<PaletteScreen>(new PaletteScreenModel(this), showCursor: true);
+            ui.CreateScreen<TView>(model, true, layer);
         }
         catch (Exception error)
         {
@@ -65,6 +71,19 @@ public sealed class Plugin : IPlugin, IDisposable
 
     internal string? SettingsError => _settingsError;
     internal IReadOnlyDictionary<string, List<string>> Presets => _settings.Presets;
+
+    /// <summary>Sends a preset's colours to the matching palette slots. Returns slots sent.</summary>
+    internal int ApplyPreset(string name)
+    {
+        if (!_settings.Presets.TryGetValue(name, out var colors))
+            throw new InvalidOperationException("Preset " + name + " no longer exists");
+        var palette = Palette.ReadPalette();
+        if (palette.Count == 0) throw new InvalidOperationException("Equip the paint gun first");
+        var sent = 0;
+        for (var i = 0; i < Math.Min(colors.Count, palette.Count); i++)
+            if (HexColor.TryParse(colors[i], out var color, out _) && Palette.SetSlot(i, color)) sent++;
+        return sent;
+    }
 
     internal void SavePreset(string name, IEnumerable<HexColor> colors) => Store(_settings.With(name, colors));
 
@@ -78,5 +97,9 @@ public sealed class Plugin : IPlugin, IDisposable
         _settings = next;
     }
 
-    public void Dispose() => Palette.Dispose();
+    public void Dispose()
+    {
+        _radial?.Dispose();
+        Palette.Dispose();
+    }
 }

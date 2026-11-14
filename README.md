@@ -1,6 +1,6 @@
 # FNS Paint Gun Color Picker
 
-**v0.1.0 preview** — optional Pulsar Modern client plugin for Space Engineers 2.
+**v0.2.0 preview** — optional Pulsar Modern client plugin for Space Engineers 2.
 
 Type hex colour codes (`#RRGGBB` or `#RGB`) into your paint gun palette slots,
 see the colour the game will actually store before you apply it, and keep
@@ -17,7 +17,17 @@ disabled until validated. Windows is the release test platform.
    `Modern/Local` directory under your Pulsar installation.
 3. Enable **FNSPaintColorPicker** in your Pulsar profile and launch SE2.
 
-## Use
+## Use from the colour wheel
+
+1. Load a world, equip the paint gun, open its quick menu and go to **Colors**.
+2. **Middle-click** a colour to type a hex code for that slot. Enter saves,
+   Esc cancels. Right-click still goes back, and left-click still selects.
+   Slots are edited by position, so duplicate colours (several whites) can
+   each be changed individually.
+3. Click **Presets** in the centre of the wheel to save the current palette
+   under a name, apply a saved preset to all slots, or delete one.
+
+## Use from the plugin settings
 
 1. Load a world and equip the paint gun.
 2. Open the plugin's settings from the Pulsar plugin menu. Status should read
@@ -39,9 +49,14 @@ file to reset it.
 The plugin calls the game's own networked palette update — the same call the
 vanilla colour-pick action uses. The server applies it to the **sender's own**
 palette only, so the plugin cannot change other players' colours. It sends only
-slots that exist and colours already in the game's 0–1 HSV range. One Harmony
-postfix observes when the local paint tool loads its palette; nothing else is
-patched, and nothing is written to world files directly.
+slots that exist and colours already in the game's 0–1 HSV range. Nothing is
+written to world files directly.
+
+Two Harmony postfixes are used: one observes when the local paint tool loads
+its palette, and one notices when a quick menu screen is created so the paint
+tool's colour wheel can get a middle-click handler and the centre Presets
+button. Other tools' quick menus are not changed. If the wheel integration
+cannot attach, the settings screen still works.
 
 Multiplayer has not been validated. Every player who wants hex entry needs the
 plugin; others are unaffected.

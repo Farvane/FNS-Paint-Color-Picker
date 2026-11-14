@@ -143,10 +143,10 @@ internal sealed class PaletteController : IDisposable
         }
     }
 
-    private static ColorHSV ToHsv(HexColor color) =>
+    internal static ColorHSV ToHsv(HexColor color) =>
         new Avalonia.Media.Color(255, color.R, color.G, color.B).ToHSV();
 
-    private static HexColor ToHex(ColorHSV color)
+    internal static HexColor ToHex(ColorHSV color)
     {
         var c = color.ToAvalonia();
         return new HexColor(c.R, c.G, c.B);

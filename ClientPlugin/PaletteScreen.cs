@@ -26,9 +26,9 @@ internal sealed class PaletteScreenModel : ScreenViewModel
 // Uses the same ScreenView/CreateScreen extension points as the SE2 plugin template.
 internal sealed class PaletteScreen : ScreenView
 {
-    private static readonly IBrush Panel = new SolidColorBrush(Color.FromRgb(23, 31, 39));
-    private static readonly IBrush Edge = new SolidColorBrush(Color.FromRgb(66, 82, 96));
-    private static readonly IBrush Bad = new SolidColorBrush(Color.FromRgb(232, 112, 96));
+    internal static readonly IBrush Panel = new SolidColorBrush(Color.FromRgb(23, 31, 39));
+    internal static readonly IBrush Edge = new SolidColorBrush(Color.FromRgb(66, 82, 96));
+    internal static readonly IBrush Bad = new SolidColorBrush(Color.FromRgb(232, 112, 96));
 
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _feedback = new() { TextWrapping = TextWrapping.Wrap };
@@ -51,7 +51,7 @@ internal sealed class PaletteScreen : ScreenView
 
         var panel = new StackPanel { Margin = new Thickness(30), Spacing = 18 };
         panel.Children.Add(new TextBlock { Text = "FNS Paint Gun Color Picker", FontSize = 25 });
-        panel.Children.Add(new TextBlock { Text = "v0.1.0 preview • SE2 " + PaletteController.SupportedBuild, TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text = "v0.2.0 preview • SE2 " + PaletteController.SupportedBuild, TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(_status);
         panel.Children.Add(new TextBlock
         {
@@ -201,14 +201,14 @@ internal sealed class PaletteScreen : ScreenView
         Refresh();
     }
 
-    private static StackPanel Row(params Control[] children)
+    internal static StackPanel Row(params Control[] children)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         foreach (var child in children) row.Children.Add(child);
         return row;
     }
 
-    private static Border Swatch(HexColor color, double size) => new()
+    internal static Border Swatch(HexColor color, double size) => new()
     {
         Width = size, Height = size, BorderBrush = Edge, BorderThickness = new Thickness(1),
         Background = new SolidColorBrush(Color.FromRgb(color.R, color.G, color.B))
