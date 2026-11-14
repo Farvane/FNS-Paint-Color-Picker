@@ -51,7 +51,7 @@ internal sealed class PaletteScreen : ScreenView
 
         var panel = new StackPanel { Margin = new Thickness(30), Spacing = 18 };
         panel.Children.Add(new TextBlock { Text = "FNS Paint Gun Color Picker", FontSize = 25 });
-        panel.Children.Add(new TextBlock { Text = "v0.2.0 preview • SE2 " + PaletteController.SupportedBuild, TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text = "v0.2.1 preview • SE2 " + PaletteController.SupportedBuild, TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(_status);
         panel.Children.Add(new TextBlock
         {
@@ -68,7 +68,7 @@ internal sealed class PaletteScreen : ScreenView
 
         var border = new Border
         {
-            Width = 820, MaxHeight = 860,
+            MinWidth = 760, MaxWidth = 1400, MaxHeight = 900,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             Background = Panel, BorderBrush = Edge, BorderThickness = new Thickness(1),
             Child = new ScrollViewer { Content = panel }
@@ -140,7 +140,7 @@ internal sealed class PaletteScreen : ScreenView
             var swatches = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
             foreach (var hex in colors)
                 if (HexColor.TryParse(hex, out var c, out _)) swatches.Children.Add(Swatch(c, 16));
-            _presets.Children.Add(Row(new TextBlock { Text = name, Width = 200, VerticalAlignment = VerticalAlignment.Center }, swatches, load, delete));
+            _presets.Children.Add(Row(new TextBlock { Text = name, Width = 240, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis }, swatches, load, delete));
         }
     }
 
@@ -203,7 +203,7 @@ internal sealed class PaletteScreen : ScreenView
 
     internal static StackPanel Row(params Control[] children)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, HorizontalAlignment = HorizontalAlignment.Left };
         foreach (var child in children) row.Children.Add(child);
         return row;
     }
@@ -217,7 +217,7 @@ internal sealed class PaletteScreen : ScreenView
     private sealed class SlotRow
     {
         private readonly Border _current = Swatch(default, 28);
-        private readonly TextBlock _label = new() { Width = 110, VerticalAlignment = VerticalAlignment.Center };
+        private readonly TextBlock _label = new() { Width = 240, VerticalAlignment = VerticalAlignment.Center };
         private readonly TextBox _input = new() { Width = 130, Watermark = "#RRGGBB", MaxLength = 7 };
         private readonly Border _preview = Swatch(default, 28);
         private readonly TextBlock _hint = new() { Width = 200, VerticalAlignment = VerticalAlignment.Center };
@@ -243,7 +243,7 @@ internal sealed class PaletteScreen : ScreenView
         {
             _current.Background = new SolidColorBrush(Color.FromRgb(color.R, color.G, color.B));
             _current.BorderThickness = new Thickness(selected ? 3 : 1);
-            _label.Text = (Index + 1) + ". " + color + (selected ? " ◄" : string.Empty);
+            _label.Text = (Index + 1) + ". " + color + (selected ? "  (selected)" : string.Empty);
         }
 
         public void Enter(string hex)

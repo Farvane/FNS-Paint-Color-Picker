@@ -1,6 +1,6 @@
 # FNS Paint Gun Color Picker
 
-**v0.2.0 preview** — optional Pulsar Modern client plugin for Space Engineers 2.
+**v0.2.1 preview** — optional Pulsar Modern client plugin for Space Engineers 2.
 
 Type hex colour codes (`#RRGGBB` or `#RGB`) into your paint gun palette slots,
 see the colour the game will actually store before you apply it, and keep
@@ -31,7 +31,7 @@ disabled until validated. Windows is the release test platform.
 
 1. Load a world and equip the paint gun.
 2. Open the plugin's settings from the Pulsar plugin menu. Status should read
-   **Ready**, and the slots list your current palette (◄ marks the selected slot).
+   **Ready**, and the slots list your current palette ("(selected)" marks the current slot).
 3. Type a hex value next to a slot. The preview swatch and hint show what the
    game will store ("Exact", or "Stored as #…" if it rounds). Click **Set**,
    or fill several slots and click **Apply all entered**.

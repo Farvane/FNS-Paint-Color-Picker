@@ -28,16 +28,19 @@ internal abstract class WheelDialogModel : ScreenViewModel
 internal abstract class WheelDialog : ScreenView
 {
     protected readonly TextBlock Feedback = new() { TextWrapping = TextWrapping.Wrap };
+    protected readonly TextBlock Title = new() { FontSize = 21 };
 
-    protected void Build(string title, Control body, double width)
+    // Sizes to content (game fonts are larger than Avalonia defaults), within sensible bounds.
+    protected void Build(string title, Control body, double minWidth)
     {
-        var panel = new StackPanel { Margin = new Thickness(24), Spacing = 14 };
-        panel.Children.Add(new TextBlock { Text = title, FontSize = 21 });
+        Title.Text = title;
+        var panel = new StackPanel { Margin = new Thickness(28, 24), Spacing = 14 };
+        panel.Children.Add(Title);
         panel.Children.Add(body);
         panel.Children.Add(Feedback);
         var border = new Border
         {
-            Width = width, MaxHeight = 640,
+            MinWidth = minWidth, MaxWidth = 1300, MaxHeight = 760,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             Background = PaletteScreen.Panel, BorderBrush = PaletteScreen.Edge, BorderThickness = new Thickness(1),
             Child = new ScrollViewer { Content = panel }
@@ -91,7 +94,6 @@ internal sealed class SlotEditorScreen : WheelDialog
     private readonly Border _preview = PaletteScreen.Swatch(default, 40);
     private readonly TextBlock _currentText = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _hint = new() { VerticalAlignment = VerticalAlignment.Center };
-    private string _title = "Palette slot";
 
     public SlotEditorScreen()
     {
@@ -111,7 +113,7 @@ internal sealed class SlotEditorScreen : WheelDialog
         body.Children.Add(PaletteScreen.Row(_input, _preview, _hint));
         body.Children.Add(PaletteScreen.Row(save, cancel));
         body.Children.Add(new TextBlock { Text = "Enter saves • Esc cancels", Opacity = 0.7 });
-        Build(_title, body, 460);
+        Build("Palette slot", body, 420);
     }
 
     private SlotEditorModel? Model => DataContext as SlotEditorModel;
@@ -120,6 +122,7 @@ internal sealed class SlotEditorScreen : WheelDialog
     {
         base.OnAttachedToVisualTree(e);
         if (Model is not { } model) return;
+        Title.Text = "Palette slot " + (model.Slot + 1);
         var palette = model.Plugin.Palette.ReadPalette();
         if (model.Slot < palette.Count)
         {
@@ -194,8 +197,8 @@ internal sealed class PresetsScreen : WheelDialog
         var body = new StackPanel { Spacing = 14 };
         body.Children.Add(_list);
         body.Children.Add(PaletteScreen.Row(_name, save));
-        body.Children.Add(close);
-        Build("Palette presets", body, 640);
+        body.Children.Add(PaletteScreen.Row(close));
+        Build("Palette presets", body, 720);
     }
 
     private PresetsModel? Model => DataContext as PresetsModel;
@@ -232,7 +235,7 @@ internal sealed class PresetsScreen : WheelDialog
             foreach (var hex in colors)
                 if (HexColor.TryParse(hex, out var c, out _)) swatches.Children.Add(PaletteScreen.Swatch(c, 14));
             _list.Children.Add(PaletteScreen.Row(
-                new TextBlock { Text = name, Width = 170, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { Text = name, Width = 220, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis },
                 swatches, apply, delete));
         }
     }
