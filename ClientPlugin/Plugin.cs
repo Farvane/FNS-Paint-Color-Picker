@@ -15,7 +15,7 @@ namespace Farvane.PaintColorPicker;
 public sealed class Plugin : IPlugin, IDisposable
 {
     public const string Name = "FNSPaintColorPicker";
-    public const string Version = "1.1.0";
+    public const string Version = "1.1.1";
     // Pulsar injects this delegate before constructing the plugin.
 #pragma warning disable CS0649
     private static Func<string, string?, string>? GetConfigPath;
@@ -35,8 +35,10 @@ public sealed class Plugin : IPlugin, IDisposable
         {
             var directory = GetConfigPath?.Invoke(Name, null)
                 ?? throw new InvalidOperationException("Pulsar configuration directory is unavailable");
-            _configFile = Path.Combine(directory, "settings.json");
-            _settings = Settings.Load(_configFile);
+            var configFile = Path.Combine(directory, "settings.json");
+            _settings = Settings.Load(configFile);
+            // Keep persistence disabled after a load failure so an unreadable file is never overwritten.
+            _configFile = configFile;
             Diag.DebugEnabled = _settings.DebugLogging;
         }
         catch (Exception error)
@@ -113,7 +115,7 @@ public sealed class Plugin : IPlugin, IDisposable
         }
         var result = Palette.SetSlots(slots, "Preset '" + name + "'");
         return new PresetApplied(
-            slots.ToDictionary(s => s.Key, s => PaletteController.ToHex(s.Value)),
+            slots.ToDictionary(s => s.Key, s => s.Value),
             result.Sent.Count, result.Unchanged.Count, Math.Max(0, count - palette.Count));
     }
 
@@ -150,7 +152,7 @@ public sealed class Plugin : IPlugin, IDisposable
     }
 }
 
-internal sealed record PresetApplied(IReadOnlyDictionary<int, HexColor> Shown, int Sent, int Unchanged, int Ignored)
+internal sealed record PresetApplied(IReadOnlyDictionary<int, ColorHSV> Shown, int Sent, int Unchanged, int Ignored)
 {
     public string Describe(string name)
     {

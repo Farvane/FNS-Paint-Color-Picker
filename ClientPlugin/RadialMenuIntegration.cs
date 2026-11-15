@@ -14,6 +14,7 @@ using HarmonyLib;
 using Keen.Game2.Client.GameSystems.Toolbars.PaintTool;
 using Keen.Game2.Client.UI.Library.Controls.QuickMenu;
 using Keen.Game2.Client.UI.Library.Controls.RadialMenu;
+using Keen.VRage.Library.Mathematics;
 using Keen.VRage.UI.Screens;
 
 namespace Farvane.PaintColorPicker;
@@ -122,7 +123,7 @@ internal sealed class RadialMenuIntegration : IDisposable
         return draw is null ? null : menu => draw.Invoke(menu, null);
     }
 
-    private static void ShowColors(QuickMenuScreen screen, RadialMenuViewModel layer, IReadOnlyDictionary<int, HexColor> colors)
+    private static void ShowColors(QuickMenuScreen screen, RadialMenuViewModel layer, IReadOnlyDictionary<int, ColorHSV> colors)
     {
         var panels = ColorPanels(layer);
         var shown = 0;
@@ -137,7 +138,8 @@ internal sealed class RadialMenuIntegration : IDisposable
             var position = layer.RadialMenuPanels.IndexOf(old);
             if (position < 0) continue;
             shown++;
-            layer.RadialMenuPanels[position] = new ColorRadialMenuPanel(PaletteController.ToHsv(color))
+            // Vanilla locates the slot by exact HSV equality when a slice is selected.
+            layer.RadialMenuPanels[position] = new ColorRadialMenuPanel(color)
             {
                 DisplayName = old.DisplayName,
                 Icon = old.Icon,
@@ -219,7 +221,7 @@ internal sealed class RadialMenuIntegration : IDisposable
             e.Handled = true;
             Diag.Debug("Middle-click on wheel slot " + (slot + 1));
             var model = new SlotEditorModel(_owner._plugin, slot,
-                color => ShowColors(screen, layer, new Dictionary<int, HexColor> { [slot] = color }));
+                color => ShowColors(screen, layer, new Dictionary<int, ColorHSV> { [slot] = color }));
             _owner._plugin.ShowScreen<SlotEditorScreen>(model, ScreenLayer.Top);
         }
 

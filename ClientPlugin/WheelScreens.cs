@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Keen.VRage.Library.Mathematics;
 using Keen.VRage.UI.Screens;
 
 namespace Farvane.PaintColorPicker;
@@ -81,8 +82,8 @@ internal abstract class WheelDialog : ScreenView
 internal sealed class SlotEditorModel : WheelDialogModel
 {
     internal int Slot { get; }
-    internal Action<HexColor> Saved { get; }
-    public SlotEditorModel(Plugin plugin, int slot, Action<HexColor> saved) : base(plugin)
+    internal Action<ColorHSV> Saved { get; }
+    public SlotEditorModel(Plugin plugin, int slot, Action<ColorHSV> saved) : base(plugin)
     {
         Slot = slot;
         Saved = saved;
@@ -154,7 +155,7 @@ internal sealed class SlotEditorScreen : WheelDialog
         var model = Model ?? throw new InvalidOperationException("Editor is not ready");
         if (!HexColor.TryParse(_input.Text, out var color, out var error)) return error;
         if (model.Plugin.Palette.SetSlot(model.Slot, color, "Wheel slot editor"))
-            model.Saved(PaletteController.Stored(color));
+            model.Saved(PaletteController.ToHsv(color));
         return null;
     }
 
@@ -179,8 +180,8 @@ internal sealed class SlotEditorScreen : WheelDialog
 
 internal sealed class PresetsModel : WheelDialogModel
 {
-    internal Action<IReadOnlyDictionary<int, HexColor>> Applied { get; }
-    public PresetsModel(Plugin plugin, Action<IReadOnlyDictionary<int, HexColor>> applied) : base(plugin) => Applied = applied;
+    internal Action<IReadOnlyDictionary<int, ColorHSV>> Applied { get; }
+    public PresetsModel(Plugin plugin, Action<IReadOnlyDictionary<int, ColorHSV>> applied) : base(plugin) => Applied = applied;
 }
 
 internal sealed class PresetsScreen : WheelDialog

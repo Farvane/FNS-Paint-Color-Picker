@@ -1,6 +1,6 @@
 # \[FNS\] GRIDWORX - Paint Gun Color Picker
 
-**v1.1.0** — optional Pulsar Modern client plugin for Space Engineers 2.
+**v1.1.1** — optional Pulsar Modern client plugin for Space Engineers 2.
 
 Type hex colour codes (`#RRGGBB` or `#RGB`) into your paint gun palette slots,
 see the colour the game will actually store before you apply it, and keep

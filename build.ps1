@@ -3,7 +3,7 @@
 param([Parameter(Mandatory = $true)][string]$Game2Path)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$version = '1.1.0'
+$version = '1.1.1'
 $game = (Resolve-Path -LiteralPath $Game2Path).ProviderPath
 & dotnet test (Join-Path $PSScriptRoot 'Tests\Tests.csproj') --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed.' }
