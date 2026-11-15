@@ -1,6 +1,6 @@
 # \[FNS\] GRIDWORX - Paint Gun Color Picker
 
-**v1.0.0** — optional Pulsar Modern client plugin for Space Engineers 2.
+**v1.1.0** — optional Pulsar Modern client plugin for Space Engineers 2.
 
 Type hex colour codes (`#RRGGBB` or `#RGB`) into your paint gun palette slots,
 see the colour the game will actually store before you apply it, and keep
@@ -25,7 +25,9 @@ disabled until validated. Windows is the release test platform.
    Slots are edited by position, so duplicate colours (several whites) can
    each be changed individually.
 3. Click **Presets** in the centre of the wheel to save the current palette
-   under a name, apply a saved preset to all slots, or delete one.
+   under a name, apply a saved preset to all slots, or delete one. After
+   **Apply**, the dialog stays open and reports how many slots were sent or
+   already matched; close it with **Close** or Esc.
 
 ## Use from the plugin settings
 
@@ -43,6 +45,27 @@ Presets are stored by this plugin in `settings.json` in the Pulsar plugin
 configuration directory. If that file is invalid, palette editing still works
 and the presets section explains the problem; close the game and rename the
 file to reset it.
+
+## Built-in SE2 Default preset
+
+Both preset lists start with **SE2 Default (built in)**: the paint gun's stock
+palette for this game build. Applying it sends the game's exact HSV values (not
+rounded hex), so restored slots match blocks painted with the stock colours. It
+cannot be deleted, and the name is reserved; a saved preset already called
+"SE2 Default" is kept as "SE2 Default (saved)".
+
+## Troubleshooting and debug logging
+
+Problems (a screen that cannot open, the wheel integration not attaching, an
+unreadable `settings.json`) are always written to the SE2 log with the prefix
+`[FNS Paint Color Picker]`, plus one startup line with the plugin version.
+
+For more detail, open the plugin settings and tick **Debug logging** under
+Troubleshooting. The setting is saved in `settings.json`. While it is on, the
+plugin also logs `[debug]` lines for each slot it sends, preset and dialog
+actions, why the wheel ignored a click or the Presets button, and whether the
+game confirmed the new colours about two seconds after they were sent. Turn it
+off again for normal play. The SE2 log is in `%AppData%\SpaceEngineers2\Temp\Logs`.
 
 ## How it works
 

@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Avalonia.Threading;
 using HarmonyLib;
 using Keen.Game2.Client.WorldObjects.Tools;
 using Keen.Game2.Simulation.GameSystems.Ownership;
 using Keen.Game2.Simulation.WorldObjects.Tools;
 using Keen.VRage.Core.Game.Components;
-using Keen.VRage.Library.Diagnostics;
 using Keen.VRage.Library.Mathematics;
 using Keen.VRage.UI.Shared.Extensions;
 
@@ -18,7 +19,6 @@ namespace Farvane.PaintColorPicker;
 /// </summary>
 internal sealed class PaletteController : IDisposable
 {
-    private const string Label = "[FNS Paint Color Picker] ";
     internal const string OwnerId = "farvane.fns-paint-color-picker";
     internal const string SupportedBuild = "4.0.0.3169";
 
@@ -50,7 +50,7 @@ internal sealed class PaletteController : IDisposable
         catch (Exception error)
         {
             _unsupported = error is InvalidOperationException ? error.Message : "Unavailable (" + error.GetType().Name + ")";
-            Log.Default.WriteLine(Label + _unsupported);
+            Diag.Info(_unsupported);
             _harmony?.UnpatchAll(OwnerId);
         }
     }
@@ -58,8 +58,11 @@ internal sealed class PaletteController : IDisposable
     // Vanilla assigns PaintData when the tool's client component joins the scene.
     private static void OnPaintDataAssigned(PaintToolControllableComponent __instance)
     {
-        if (_instance is not null && __instance.PaintData is not null)
-            _instance._tool = new WeakReference<PaintToolControllableComponent>(__instance);
+        if (_instance is null || __instance.PaintData is null) return;
+        _instance._tool = new WeakReference<PaintToolControllableComponent>(__instance);
+        if (Diag.DebugEnabled)
+            Diag.Debug("Paint tool observed: " + __instance.PaintData.Palette.Count + " slots, selected slot " +
+                       (__instance.PaintData.PaletteIndex + 1) + ", local player's: " + IsLocalPlayers(__instance));
     }
 
     public bool IsSupported => _unsupported is null;
@@ -88,21 +91,91 @@ internal sealed class PaletteController : IDisposable
     public static HexColor Stored(HexColor color) => ToHex(ToHsv(color));
 
     /// <summary>Sends the colour; returns false when the slot already holds it.</summary>
-    public bool SetSlot(int index, HexColor color)
+    public bool SetSlot(int index, HexColor color, string source) =>
+        SetSlots(new[] { new KeyValuePair<int, HexColor>(index, color) }, source).Sent.Count == 1;
+
+    /// <summary>
+    /// Sends several slots. Slots that already hold the colour are not sent. With debug logging
+    /// on, each slot is logged and the palette is re-read shortly after to confirm the game applied it.
+    /// </summary>
+    public SlotWriteResult SetSlots(IReadOnlyList<KeyValuePair<int, HexColor>> slots, string source) =>
+        SetSlots(slots.Select(s => new KeyValuePair<int, ColorHSV>(s.Key, ToHsv(s.Value))).ToList(), source);
+
+    /// <summary>Exact HSV variant, used for the stock palette so values match the game's own.</summary>
+    public SlotWriteResult SetSlots(IReadOnlyList<KeyValuePair<int, ColorHSV>> slots, string source)
+    {
+        var result = new SlotWriteResult();
+        Diag.Debug(source + ": sending " + slots.Count + " slot(s)");
+        foreach (var (index, color) in slots)
+        {
+            if (SetSlotCore(index, color, source)) result.Sent.Add(index);
+            else result.Unchanged.Add(index);
+        }
+        Diag.Debug(source + ": sent " + result.Sent.Count + ", already matched " + result.Unchanged.Count);
+        if (Diag.DebugEnabled && result.Sent.Count > 0)
+            VerifyLater(slots.Where(s => result.Sent.Contains(s.Key)).ToList(), source);
+        return result;
+    }
+
+    private bool SetSlotCore(int index, ColorHSV hsv, string source)
     {
         if (!TryGetTool(out var tool, out var reason)) throw new InvalidOperationException(reason);
         var palette = tool.PaintData.Palette;
         // The server writes Palette[index] without a range check; never send an invalid slot.
         if (index < 0 || index >= palette.Count)
             throw new InvalidOperationException("Slot " + (index + 1) + " does not exist in this palette");
-        var hsv = ToHsv(color);
-        if (palette[index].Values == hsv.Values) return false;
+        var color = ToHex(hsv);
+        if (palette[index].Values == hsv.Values)
+        {
+            Diag.Debug(source + ": slot " + (index + 1) + " already holds " + color + "; not sent");
+            return false;
+        }
         var session = tool.GetSession()
             ?? throw new InvalidOperationException("The world session is unavailable");
         // Static: the server resolves the sender's identity and edits only that player's palette.
         PaintToolPerPlayerData.SetPaintColor(session, hsv, index).SkipWait();
+        Diag.Debug(source + ": slot " + (index + 1) + " " + ToHex(palette[index]) + " -> " + color +
+                   " (HSV " + hsv.Values + ") sent");
         return true;
     }
+
+    // Debug only: the game confirms asynchronously, so re-read the palette a moment later.
+    private void VerifyLater(IReadOnlyList<KeyValuePair<int, ColorHSV>> sent, string source)
+    {
+        var expected = sent.Select(s => (Slot: s.Key, Color: ToHex(s.Value))).ToList();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            try
+            {
+                var palette = ReadPalette();
+                if (palette.Count == 0)
+                {
+                    Diag.Debug(source + ": could not confirm; " + Status);
+                    return;
+                }
+                var wrong = expected
+                    .Where(e => e.Slot >= palette.Count || !Close(palette[e.Slot], e.Color))
+                    .Select(e => "slot " + (e.Slot + 1) + " expected " + e.Color + ", has " +
+                                 (e.Slot < palette.Count ? palette[e.Slot].ToString() : "nothing"))
+                    .ToList();
+                Diag.Debug(wrong.Count == 0
+                    ? source + ": game confirmed all " + expected.Count + " slot(s)"
+                    : source + ": " + wrong.Count + " of " + expected.Count + " slot(s) not applied after 2 s: " +
+                      string.Join("; ", wrong));
+            }
+            catch (Exception error)
+            {
+                Diag.Failed(source + " confirmation", error);
+            }
+        };
+        timer.Start();
+    }
+
+    // Network round-trips of HSV floats can shift a channel by one.
+    private static bool Close(HexColor a, HexColor b) =>
+        Math.Abs(a.R - b.R) <= 1 && Math.Abs(a.G - b.G) <= 1 && Math.Abs(a.B - b.B) <= 1;
 
     private bool TryGetTool(out PaintToolControllableComponent tool, out string reason)
     {
@@ -158,4 +231,10 @@ internal sealed class PaletteController : IDisposable
         if (ReferenceEquals(_instance, this)) _instance = null;
         _tool = null;
     }
+}
+
+internal sealed class SlotWriteResult
+{
+    public List<int> Sent { get; } = new();
+    public List<int> Unchanged { get; } = new();
 }

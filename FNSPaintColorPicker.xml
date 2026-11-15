@@ -6,7 +6,7 @@
   <FriendlyName>[FNS] GRIDWORX - Paint Gun Color Picker</FriendlyName>
   <Author>Farvane Naval Systems</Author>
   <Tooltip>Type hex colour codes into your paint gun palette.</Tooltip>
-  <Description>Adds a settings screen where you type #RRGGBB values into your paint gun palette slots, previews the colour the game will store, and keeps named presets for reuse across worlds. Uses the game's own palette update, so it changes only your own palette.</Description>
+  <Description>Type #RRGGBB values into your paint gun palette from the colour wheel (middle-click a colour) or the plugin settings, preview the colour the game will store, and keep named presets for reuse across worlds, including a built-in SE2 Default preset to restore the stock palette. Uses the game's own palette update, so it changes only your own palette. Optional debug logging for troubleshooting.</Description>
   <SourceDirectories>
     <Directory>ClientPlugin</Directory>
   </SourceDirectories>

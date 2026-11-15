@@ -66,9 +66,11 @@ internal abstract class WheelDialog : ScreenView
             var message = action();
             if (message is null) Dispose();
             else Feedback.Text = message;
+            Diag.Debug(Title.Text + ": " + (message ?? "done, closed"));
         }
         catch (Exception error)
         {
+            Diag.Failed(Title.Text ?? "Wheel dialog", error);
             Feedback.Text = error is InvalidOperationException or ArgumentException
                 ? error.Message
                 : "Failed (" + error.GetType().Name + "). Check the SE2 log.";
@@ -121,7 +123,11 @@ internal sealed class SlotEditorScreen : WheelDialog
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (Model is not { } model) return;
+        if (Model is not { } model)
+        {
+            Diag.Info("Slot editor opened without its model (" + (DataContext?.GetType().Name ?? "none") + ")");
+            return;
+        }
         Title.Text = "Palette slot " + (model.Slot + 1);
         var palette = model.Plugin.Palette.ReadPalette();
         if (model.Slot < palette.Count)
@@ -147,7 +153,7 @@ internal sealed class SlotEditorScreen : WheelDialog
     {
         var model = Model ?? throw new InvalidOperationException("Editor is not ready");
         if (!HexColor.TryParse(_input.Text, out var color, out var error)) return error;
-        if (model.Plugin.Palette.SetSlot(model.Slot, color))
+        if (model.Plugin.Palette.SetSlot(model.Slot, color, "Wheel slot editor"))
             model.Saved(PaletteController.Stored(color));
         return null;
     }
@@ -212,19 +218,21 @@ internal sealed class PresetsScreen : WheelDialog
     private void Rebuild()
     {
         _list.Children.Clear();
-        if (Model is not { } model) return;
-        if (model.Plugin.SettingsError is { } error)
+        if (Model is not { } model)
         {
-            _list.Children.Add(new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+            Diag.Info("Presets dialog opened without its model (" + (DataContext?.GetType().Name ?? "none") + ")");
             return;
         }
-        if (model.Plugin.Presets.Count == 0)
-            _list.Children.Add(new TextBlock { Text = "No presets yet. Name the current palette below and save it." });
-        foreach (var (name, colors) in model.Plugin.Presets)
+        if (model.Plugin.SettingsError is { } error)
+        {
+            // The built-in stock palette still works without the settings file.
+            _list.Children.Add(new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap });
+        }
+        foreach (var (name, colors, builtIn) in model.Plugin.Presets)
         {
             var apply = new Button { Content = "Apply" };
             apply.Click += (_, _) => Run(() => Apply(name));
-            var delete = new Button { Content = "Delete" };
+            var delete = new Button { Content = "Delete", IsVisible = !builtIn };
             delete.Click += (_, _) => Run(() =>
             {
                 model.Plugin.DeletePreset(name);
@@ -235,22 +243,20 @@ internal sealed class PresetsScreen : WheelDialog
             foreach (var hex in colors)
                 if (HexColor.TryParse(hex, out var c, out _)) swatches.Children.Add(PaletteScreen.Swatch(c, 14));
             _list.Children.Add(PaletteScreen.Row(
-                new TextBlock { Text = name, Width = 220, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { Text = builtIn ? name + " (built in)" : name, Width = 220, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis },
                 swatches, apply, delete));
         }
+        if (model.Plugin.Presets.All(p => p.IsBuiltIn))
+            _list.Children.Add(new TextBlock { Text = "No saved presets yet. Name the current palette below and save it." });
     }
 
-    private string? Apply(string name)
+    // Stays open with the outcome so a refused or partial apply is visible.
+    private string Apply(string name)
     {
         var model = Model ?? throw new InvalidOperationException("Presets are not ready");
-        model.Plugin.ApplyPreset(name);
-        var shown = new Dictionary<int, HexColor>();
-        var colors = model.Plugin.Presets[name];
-        var slots = model.Plugin.Palette.ReadPalette().Count;
-        for (var i = 0; i < Math.Min(colors.Count, slots); i++)
-            if (HexColor.TryParse(colors[i], out var color, out _)) shown[i] = PaletteController.Stored(color);
-        model.Applied(shown);
-        return null;
+        var result = model.Plugin.ApplyPreset(name);
+        model.Applied(result.Shown);
+        return result.Describe(name);
     }
 
     private string Save()

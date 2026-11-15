@@ -9,11 +9,11 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using HarmonyLib;
 using Keen.Game2.Client.GameSystems.Toolbars.PaintTool;
 using Keen.Game2.Client.UI.Library.Controls.QuickMenu;
 using Keen.Game2.Client.UI.Library.Controls.RadialMenu;
-using Keen.VRage.Library.Diagnostics;
 using Keen.VRage.UI.Screens;
 
 namespace Farvane.PaintColorPicker;
@@ -25,7 +25,6 @@ namespace Farvane.PaintColorPicker;
 /// </summary>
 internal sealed class RadialMenuIntegration : IDisposable
 {
-    private const string Label = "[FNS Paint Color Picker] ";
     private const string HarmonyId = PaletteController.OwnerId + ".radial";
 
     private static RadialMenuIntegration? _instance;
@@ -47,7 +46,7 @@ internal sealed class RadialMenuIntegration : IDisposable
         catch (Exception error)
         {
             // The settings screen still works without the wheel integration.
-            Log.Default.WriteLine(Label + "Colour wheel integration unavailable: " + error.GetType().Name + " " + error.Message);
+            Diag.Info("Colour wheel integration unavailable: " + error.GetType().Name + " " + error.Message);
             _harmony?.UnpatchAll(HarmonyId);
         }
     }
@@ -60,7 +59,7 @@ internal sealed class RadialMenuIntegration : IDisposable
         }
         catch (Exception error)
         {
-            Log.Default.WriteLine(Label + "Could not extend quick menu: " + error.GetType().Name);
+            Diag.Failed("Extending a quick menu", error);
         }
     }
 
@@ -74,13 +73,29 @@ internal sealed class RadialMenuIntegration : IDisposable
     }
 
     /// <summary>The colour layer of the paint tool's wheel, when it is the active layer.</summary>
-    private static bool TryGetColorLayer(QuickMenuScreen screen, out RadialMenuViewModel layer)
+    private static bool TryGetColorLayer(QuickMenuScreen screen, out RadialMenuViewModel layer) =>
+        TryGetColorLayer(screen, out layer, out _);
+
+    private static bool TryGetColorLayer(QuickMenuScreen screen, out RadialMenuViewModel layer, out string reason)
     {
         layer = null!;
-        if (screen.DataContext is not PaintToolMenuScreenViewModel menu || menu.ActiveLayer is not { } active)
+        if (screen.DataContext is not PaintToolMenuScreenViewModel menu)
+        {
+            reason = "quick menu is not the paint tool's (" + (screen.DataContext?.GetType().Name ?? "no view model") + ")";
             return false;
-        if (!active.RadialMenuPanels.OfType<ColorRadialMenuPanel>().Any()) return false;
+        }
+        if (menu.ActiveLayer is not { } active)
+        {
+            reason = "paint tool menu has no active layer";
+            return false;
+        }
+        if (!active.RadialMenuPanels.OfType<ColorRadialMenuPanel>().Any())
+        {
+            reason = "active layer has no colour slices (" + active.RadialMenuPanels.Count + " panels)";
+            return false;
+        }
         layer = active;
+        reason = string.Empty;
         return true;
     }
 
@@ -89,15 +104,39 @@ internal sealed class RadialMenuIntegration : IDisposable
         layer.RadialMenuPanels.OfType<ColorRadialMenuPanel>().ToList();
 
     /// <summary>Recolours slices in place so the open wheel matches what was sent.</summary>
-    private static void ShowColors(RadialMenuViewModel layer, IReadOnlyDictionary<int, HexColor> colors)
+    // The wheel control builds its slices in Draw() and does not watch the panel list, so it is redrawn explicitly.
+    private static readonly Action<RadialMenu>? RedrawWheel = CreateRedraw();
+
+    private static readonly Func<RadialMenu, object?>? WheelModel = CreateWheelModel();
+
+    private static Func<RadialMenu, object?>? CreateWheelModel()
+    {
+        var field = AccessTools.Field(typeof(RadialMenu), "_viewModel");
+        return field is null ? null : menu => field.GetValue(menu);
+    }
+
+    private static Action<RadialMenu>? CreateRedraw()
+    {
+        var draw = AccessTools.Method(typeof(RadialMenu), "Draw", Type.EmptyTypes);
+        if (draw is null) Diag.Info("Wheel redraw unavailable (RadialMenu.Draw not found); colours update when the wheel reopens");
+        return draw is null ? null : menu => draw.Invoke(menu, null);
+    }
+
+    private static void ShowColors(QuickMenuScreen screen, RadialMenuViewModel layer, IReadOnlyDictionary<int, HexColor> colors)
     {
         var panels = ColorPanels(layer);
+        var shown = 0;
         foreach (var (slot, color) in colors)
         {
-            if (slot < 0 || slot >= panels.Count) continue;
+            if (slot < 0 || slot >= panels.Count)
+            {
+                Diag.Debug("Wheel has no slice for slot " + (slot + 1) + " (" + panels.Count + " colour slices)");
+                continue;
+            }
             var old = panels[slot];
             var position = layer.RadialMenuPanels.IndexOf(old);
             if (position < 0) continue;
+            shown++;
             layer.RadialMenuPanels[position] = new ColorRadialMenuPanel(PaletteController.ToHsv(color))
             {
                 DisplayName = old.DisplayName,
@@ -105,6 +144,25 @@ internal sealed class RadialMenuIntegration : IDisposable
                 HoverIcon = old.HoverIcon,
                 IsEnabled = old.IsEnabled
             };
+        }
+        Diag.Debug("Recoloured " + shown + " of " + colors.Count + " wheel slice(s)");
+        if (shown > 0) Redraw(screen, layer);
+    }
+
+    private static void Redraw(QuickMenuScreen screen, RadialMenuViewModel layer)
+    {
+        if (RedrawWheel is null) return;
+        try
+        {
+            var menus = screen.GetVisualDescendants().OfType<RadialMenu>()
+                .Where(m => ReferenceEquals(m.DataContext, layer) || ReferenceEquals(WheelModel?.Invoke(m), layer)).ToList();
+            foreach (var menu in menus) RedrawWheel(menu);
+            if (menus.Count == 0) Diag.Info("Wheel redraw: no wheel control bound to the colour layer; colours update when the wheel reopens");
+            else Diag.Debug("Redrew " + menus.Count + " wheel control(s)");
+        }
+        catch (Exception error)
+        {
+            Diag.Failed("Wheel redraw", error);
         }
     }
 
@@ -141,20 +199,45 @@ internal sealed class RadialMenuIntegration : IDisposable
         public void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (e.InitialPressMouseButton != MouseButton.Middle) return;
-            if (!_screen.TryGetTarget(out var screen) || !TryGetColorLayer(screen, out var layer)) return;
-            if (layer.HoveredItem is not ColorRadialMenuPanel hovered) return;
+            if (!_screen.TryGetTarget(out var screen)) return;
+            if (!TryGetColorLayer(screen, out var layer, out var reason))
+            {
+                Diag.Debug("Middle-click ignored: " + reason);
+                return;
+            }
+            if (layer.HoveredItem is not ColorRadialMenuPanel hovered)
+            {
+                Diag.Debug("Middle-click ignored: no colour slice hovered (" + (layer.HoveredItem?.GetType().Name ?? "nothing") + ")");
+                return;
+            }
             var slot = ColorPanels(layer).IndexOf(hovered);
-            if (slot < 0) return;
+            if (slot < 0)
+            {
+                Diag.Debug("Middle-click ignored: hovered slice is not in the colour layer");
+                return;
+            }
             e.Handled = true;
+            Diag.Debug("Middle-click on wheel slot " + (slot + 1));
             var model = new SlotEditorModel(_owner._plugin, slot,
-                color => ShowColors(layer, new Dictionary<int, HexColor> { [slot] = color }));
+                color => ShowColors(screen, layer, new Dictionary<int, HexColor> { [slot] = color }));
             _owner._plugin.ShowScreen<SlotEditorScreen>(model, ScreenLayer.Top);
         }
 
         private void OpenPresets()
         {
-            if (!_screen.TryGetTarget(out var screen) || !TryGetColorLayer(screen, out var layer)) return;
-            var model = new PresetsModel(_owner._plugin, colors => ShowColors(layer, colors));
+            if (!_screen.TryGetTarget(out var screen))
+            {
+                Diag.Info("Presets button: the colour wheel has already closed");
+                return;
+            }
+            if (!TryGetColorLayer(screen, out var layer, out var reason))
+            {
+                Diag.Info("Presets button: " + reason);
+                return;
+            }
+            Diag.Debug("Presets button clicked; " + ColorPanels(layer).Count + " colour slices, " +
+                       _owner._plugin.Presets.Count + " preset(s)");
+            var model = new PresetsModel(_owner._plugin, colors => ShowColors(screen, layer, colors));
             _owner._plugin.ShowScreen<PresetsScreen>(model, ScreenLayer.Top);
         }
 
@@ -170,6 +253,7 @@ internal sealed class RadialMenuIntegration : IDisposable
             {
                 _centreTried = true;
                 _centre = AddCentre(screen);
+                Diag.Debug("Paint tool wheel opened; Presets button " + (_centre is null ? "not added" : "added"));
             }
             if (_centre is not null) _centre.IsVisible = TryGetColorLayer(screen, out _);
         }
@@ -208,7 +292,7 @@ internal sealed class RadialMenuIntegration : IDisposable
                     screen.Content = grid;
                     return centre;
                 default:
-                    Log.Default.WriteLine(Label + "Quick menu layout not recognised; Presets button unavailable");
+                    Diag.Info("Quick menu layout not recognised (" + (screen.Content?.GetType().Name ?? "empty") + "); Presets button unavailable");
                     return null;
             }
         }

@@ -71,6 +71,45 @@ public sealed class SettingsTests : IDisposable
         Assert.Throws<JsonException>(() => Settings.Load(File));
     }
 
+    [Fact]
+    public void Debug_logging_defaults_off_and_round_trips()
+    {
+        Assert.False(Settings.Load(File).DebugLogging);
+        new Settings().With("A", Fns).WithDebugLogging(true).Save(File);
+        var loaded = Settings.Load(File);
+        Assert.True(loaded.DebugLogging);
+        Assert.Single(loaded.Presets);
+    }
+
+    [Fact]
+    public void Preset_edits_keep_debug_logging_and_toggle_does_not_mutate()
+    {
+        var original = new Settings().WithDebugLogging(true);
+        Assert.True(original.With("A", Fns).Without("A").DebugLogging);
+        Assert.False(original.WithDebugLogging(false).DebugLogging);
+        Assert.True(original.DebugLogging);
+    }
+
+    [Fact]
+    public void Files_from_v1_0_without_debug_flag_still_load()
+    {
+        Directory.CreateDirectory(_dir);
+        System.IO.File.WriteAllText(File, "{\"Presets\":{\"FNS Color Palette\":[\"#E96512\"]}}");
+        var loaded = Settings.Load(File);
+        Assert.False(loaded.DebugLogging);
+        Assert.Equal(new[] { "#E96512" }, loaded.Presets["FNS Color Palette"]);
+    }
+
+    [Fact]
+    public void Built_in_name_is_reserved_but_old_saves_are_kept()
+    {
+        Assert.Throws<ArgumentException>(() => new Settings().With(" se2  default ", Fns));
+        Directory.CreateDirectory(_dir);
+        System.IO.File.WriteAllText(File, "{\"Presets\":{\"SE2 Default\":[\"#E96512\"]}}");
+        var key = Assert.Single(Settings.Load(File).Presets).Key;
+        Assert.Equal("SE2 Default (saved)", key);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_dir)) Directory.Delete(_dir, recursive: true);
